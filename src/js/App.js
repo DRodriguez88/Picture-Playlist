@@ -10,7 +10,12 @@ class App extends Component {
     this.state = {
       clarifaiKey: 'b152ab226db545d7ae11f33a8756cda5',
       mashapeKey: '8T7epZZomNmshvkB0xHh8YgIgUhnp1mbZ8RjsnqijKFCpgCBCc',
+      imgURL: 'http://miriadna.com/desctopwalls/images/max/Wet-sand.jpg',
+      imageWords: [],
+      songs: []
+
     }
+    this.changeHandler = this.changeHandler.bind(this)
   }
 
   componentDidMount() {
@@ -18,20 +23,24 @@ class App extends Component {
     /* Use Clarifai to grab image details */
     this.getImageDetails().then((imageDetails) => {
 
-      /* Find all the terms inside image details */
-      console.log('Image details from Clarifai', imageDetails);
+      /* Find top 5 terms inside image details */
+      var words = [];
+      for(let i=0; i<5; i++){
+        words.push(imageDetails.outputs[0].data.concepts[i].name);
+      }
+      this.setState({
+        imageWords: words
+      },()=>this.getMusicTerms())
 
       /* After, querying for words associated with an image, query those top 5 terms for songs */
-      this.getMusicTerms();
+      
     });
   }
 
   getImageDetails() {
 
       //images we are going to send to the api to get terms for
-      var images = [
-        'http://miriadna.com/desctopwalls/images/max/Wet-sand.jpg'
-      ];
+      var images = this.state.imgURL;
 
       //instantiate a new Clarifai app passing in your api key.
       const app = new Clarifai.App({ apiKey: this.state.clarifaiKey});
@@ -48,29 +57,36 @@ class App extends Component {
 
   getMusicTerms() {
     //using the image terms, make a query
-    var query = 'food';
-    
+    var songArray = [];
+    this.state.imageWords.map((imageWord, index) =>
       axios({
         method: 'get',
-        url: 'https://musixmatchcom-musixmatch.p.mashape.com/wsr/1.1/track.search?f_has_lyrics=1&page=1&page_size=5&q_track='+ query +'&s_track_rating=desc',
+        url: 'https://musixmatchcom-musixmatch.p.mashape.com/wsr/1.1/track.search?f_has_lyrics=1&page=1&page_size=5&q_track='+ imageWord +'&s_track_rating=desc',
         headers: {
           'X-Mashape-Key' : `${this.state.mashapeKey}`,
           'accept' : 'application/json'
         }
       }).then((res) => {
-        console.log('Terms from Music Match API', res);
-      }).catch(err => console.log(err));
+        res.data.map((song, index) => 
+        songArray.push(res.data[index].track_name + ' by ' + res.data[index].artist_name));
+      }).catch(err => console.log(err)));
+      this.setState({
+        songs: songArray
+      })
+  }
+
+  changeHandler(e){
+    this.setState({
+      [e.target.name]: e.target.value
+    })
   }
 
   render() {
     return (
       <div className="App">
-        <div className="App-header">
-          <h2>Image to Music Converter</h2>
-        </div>
-        <p className="App-intro">
-          To get started, edit <code>src/App.js</code> and save to reload.
-        </p>
+        <input name='imgURL' placeholder='IMAGE URL' onChange={this.changeHandler}></input>
+        <img alt=''src={this.state.imgURL}/>
+        <button onClick={()=>console.log(this.state.songs)}/>
       </div>
     );
   }
